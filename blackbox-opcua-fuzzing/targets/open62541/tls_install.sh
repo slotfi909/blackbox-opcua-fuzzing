@@ -8,10 +8,15 @@ set -e
 apt-get update
 apt-get install -y build-essential cmake libssl-dev
 
+OPEN62541_REVISION=4eec281656aa7aeafbfe3722db17fadb9eacc663
 git clone https://github.com/open62541/open62541.git
 (
   cd open62541 || exit 1
 
+  git checkout --detach "$OPEN62541_REVISION" || {
+    echo "Cannot check out open62541 revision $OPEN62541_REVISION" >&2
+    exit 1
+  }
   git submodule update --init --recursive
 )
 

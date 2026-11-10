@@ -29,9 +29,10 @@ checkout does not make the target reproducible.
 The original open62541 research revision is unknown. Upstream commit
 `4eec281656aa7aeafbfe3722db17fadb9eacc663` is a date-based candidate from
 before this repository's initial commit, not evidence of the original version.
-It built and listened on TCP port 4840 in a disposable container with cached,
-mismatched submodules; that is not a clean build verification. The installers
-continue to use the floating upstream branch until a clean build is verified.
+Both installers select this commit before initializing submodules. A clean
+shallow checkout with its recorded submodules built in a disposable container
+and its `server_ctt` accepted a TCP connection on port 4840. This did not test
+an OPC UA exchange, the TLS installer, or the original experiment.
 
 For the Java v0.2 release archive, an independently downloaded copy had SHA-256
 `b17796eb72c10f7e517c96f4713a7e7e5fad3eb099b88fe82bfe9bc879344f56`.

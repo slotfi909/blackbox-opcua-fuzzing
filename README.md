@@ -57,10 +57,10 @@ or server starts successfully.
 The build is not fully reproducible. The base image tag and apt packages are
 not locked, the container Python requirements include a floating boofuzz
 `dev` branch and unpinned cryptography, and runtime downloads and transitive
-dependencies can change. The .NET, Python and open62541 Git checkouts are
-floating; Node's source commit is fixed but its separate npm installation is
-not. Java's versioned release archive has no authenticated checksum in this
-project. See [target notes](blackbox-opcua-fuzzing/targets/README.md) for
+dependencies can change. The .NET and Python Git checkouts are floating;
+open62541 and Node use fixed source commits, but Node's separate npm
+installation is not pinned. Java's versioned release archive has no
+authenticated checksum in this project. See [target notes](blackbox-opcua-fuzzing/targets/README.md) for
 revision details. A successful current build is not evidence that it
 reproduces the original published experiment.
 

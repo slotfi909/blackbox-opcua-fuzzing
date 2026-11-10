@@ -103,6 +103,29 @@ class InstallerTests(unittest.TestCase):
             self.assertIn('Cannot check out node-opcua revision', result.stderr)
             self.assertFalse((root / 'copy-ran').exists())
 
+    def test_open62541_checkout_failure_stops_installers(self):
+        for script in ('install.sh', 'tls_install.sh'):
+            with self.subTest(script=script), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                bindir = root / 'bin'
+                bindir.mkdir()
+                for name, body in (('apt-get', 'exit 0'),
+                                   ('git', 'if [ "$1" = clone ]; then mkdir open62541; else exit 33; fi')):
+                    command = bindir / name
+                    command.write_text(f'#!/bin/sh\n{body}\n')
+                    command.chmod(0o755)
+                installer = root / 'targets/open62541/install.sh'
+                installer.parent.mkdir(parents=True)
+                installer.symlink_to(ROOT / 'targets/open62541' / script)
+                wrapper = root / 'setup.sh'
+                wrapper.write_text(SETUP_SH.format(target='open62541'))
+                env = dict(os.environ, PATH=f'{bindir}:{os.environ["PATH"]}')
+                result = subprocess.run(['bash', str(wrapper)], cwd=root, env=env,
+                                        capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('Cannot check out open62541 revision', result.stderr)
+                self.assertFalse((root / 'target_build').exists())
+
     def test_node_download_failure_stops_installer(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
