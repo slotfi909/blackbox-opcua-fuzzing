@@ -103,6 +103,24 @@ class InstallerTests(unittest.TestCase):
             self.assertIn('Cannot check out node-opcua revision', result.stderr)
             self.assertFalse((root / 'copy-ran').exists())
 
+    def test_node_download_failure_stops_installer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bindir = root / 'bin'
+            bindir.mkdir()
+            for name, status in (('apt-get', 0), ('curl', 22)):
+                command = bindir / name
+                command.write_text(f'#!/bin/sh\nexit {status}\n')
+                command.chmod(0o755)
+            installer = root / 'targets/node-opc/install.sh'
+            installer.parent.mkdir(parents=True)
+            installer.symlink_to(ROOT / 'targets/node-opc/install.sh')
+            wrapper = root / 'setup.sh'
+            wrapper.write_text(SETUP_SH.format(target='node-opc'))
+            env = dict(os.environ, PATH=f'{bindir}:{os.environ["PATH"]}')
+            result = subprocess.run(['bash', str(wrapper)], cwd=root, env=env)
+            self.assertEqual(result.returncode, 22)
+
     def test_java_unexpected_initialization_failure_propagates(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
