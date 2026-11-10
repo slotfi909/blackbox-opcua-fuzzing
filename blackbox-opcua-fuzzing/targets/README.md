@@ -25,3 +25,16 @@ the commit behind the previously selected `v2.47.0` tag. The separately
 installed `node-opcua` npm package remains unpinned; the checkout and package
 combination has not been validated by a clean build or startup test. A pinned
 checkout does not make the target reproducible.
+
+The original open62541 research revision is unknown. Upstream commit
+`4eec281656aa7aeafbfe3722db17fadb9eacc663` is a date-based candidate from
+before this repository's initial commit, not evidence of the original version.
+It built and listened on TCP port 4840 in a disposable container with cached,
+mismatched submodules; that is not a clean build verification. The installers
+continue to use the floating upstream branch until a clean build is verified.
+
+For the Java v0.2 release archive, an independently downloaded copy had SHA-256
+`b17796eb72c10f7e517c96f4713a7e7e5fad3eb099b88fe82bfe9bc879344f56`.
+This was not compared with an authenticated upstream checksum and is not yet
+enforced. The .NET and Python sources and their runtime dependencies also need
+compatible, build-tested revisions.

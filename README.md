@@ -44,6 +44,35 @@ optional arguments:
 
 **Requirements: The run_docker_fuzzing.py only depends on docker-py. Install with **`pip install docker`**.**
 
+The launcher rebuilds the base image before every target build, using Docker's
+layer cache. This makes changes to the copied source, installers and container
+requirements visible without manually deleting the base image. Installer and
+build failures stop the run; build output is printed before the error. The
+result directory must be empty. A target must be a regular executable at
+`/opt/app/target`; this check alone does not prove that a wrapper's interpreter
+or server starts successfully.
+
+### Reproducibility and tests
+
+The build is not fully reproducible. The base image tag and apt packages are
+not locked, the container Python requirements include a floating boofuzz
+`dev` branch and unpinned cryptography, and runtime downloads and transitive
+dependencies can change. The .NET, Python and open62541 Git checkouts are
+floating; Node's source commit is fixed but its separate npm installation is
+not. Java's versioned release archive has no authenticated checksum in this
+project. See [target notes](blackbox-opcua-fuzzing/targets/README.md) for
+revision details. A successful current build is not evidence that it
+reproduces the original published experiment.
+
+Run the offline tests from the repository root with:
+
+```sh
+python3 -m unittest discover -s blackbox-opcua-fuzzing -p 'test_*.py' -v
+```
+
+These tests mock Docker and installer commands; they do not build images or
+start real target servers.
+
 As of now, there are five supported OPC UA implementations (all are open source):
 
 - [UA-.NETStandard](https://github.com/OPCFoundation/UA-.NETStandard)
