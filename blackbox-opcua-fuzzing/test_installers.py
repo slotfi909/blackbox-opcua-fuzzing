@@ -55,6 +55,35 @@ class InstallerTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 31)
                 self.assertFalse((root / 'make-ran').exists())
 
+    def test_node_checkout_failure_stops_installation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bindir = root / 'bin'
+            bindir.mkdir()
+            commands = {
+                'apt-get': 'exit 0',
+                'curl': 'exit 0',
+                'npm': 'exit 0',
+                'git': 'if [ "$1" = clone ]; then mkdir node-opcua; else exit 33; fi',
+                'cp': 'touch "$TEST_MARKER"',
+            }
+            for name, body in commands.items():
+                command = bindir / name
+                command.write_text(f'#!/bin/sh\n{body}\n')
+                command.chmod(0o755)
+            installer = root / 'targets/node-opc/install.sh'
+            installer.parent.mkdir(parents=True)
+            installer.symlink_to(ROOT / 'targets/node-opc/install.sh')
+            wrapper = root / 'setup.sh'
+            wrapper.write_text(SETUP_SH.format(target='node-opc'))
+            env = dict(os.environ, PATH=f'{bindir}:{os.environ["PATH"]}',
+                       TEST_MARKER=str(root / 'copy-ran'))
+            result = subprocess.run(['bash', str(wrapper)], cwd=root, env=env,
+                                    capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('Cannot check out node-opcua revision', result.stderr)
+            self.assertFalse((root / 'copy-ran').exists())
+
 
 if __name__ == '__main__':
     unittest.main()

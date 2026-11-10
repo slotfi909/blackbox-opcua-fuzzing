@@ -17,3 +17,11 @@ This for example is the target for the node implementation:
 
 exit 0
 ```
+
+## Source revisions
+
+The Node source checkout uses commit `bc0fd185f4905cd03c83c7a278365424f2b46bac`,
+the commit behind the previously selected `v2.47.0` tag. The separately
+installed `node-opcua` npm package remains unpinned; the checkout and package
+combination has not been validated by a clean build or startup test. A pinned
+checkout does not make the target reproducible.
