@@ -1,12 +1,13 @@
 import argparse
 import os
 import random
+import re
 import sys
 from pathlib import Path
 from typing import Union
 
 import docker
-from docker.errors import ImageNotFound
+from docker.errors import BuildError
 
 DEFAULT_DIR = './fuzzing_results'
 BASE_TAG = 'blackbox-fuzzer/baseimage'
@@ -41,16 +42,20 @@ def setup_argparse():
 def run_container(target: str, local_path: str):
     client = docker.from_env()
 
-    try:
-        client.images.get(BASE_TAG)
-    except ImageNotFound:
-        print('[INFO] First stage container missing. Building it now ...')
-        client.images.build(path='.', tag=BASE_TAG, dockerfile='Dockerfile.pre')
+    def build(stage, **kwargs):
+        print(f'[INFO] Building {stage} image.')
+        try:
+            _, logs = client.images.build(**kwargs)
+        except BuildError as exception:
+            print_build_logs(exception.build_log)
+            raise
+        print_build_logs(logs)
+
+    build('base', path='.', tag=BASE_TAG, dockerfile='Dockerfile.pre')
 
     unique_tag = f'blackbox-fuzzer/{target}-{random.getrandbits(32)}'
 
-    print('[INFO] Building container.')
-    client.images.build(path='.', tag=unique_tag)
+    build('target', path='.', tag=unique_tag)
 
     print('[INFO] Start fuzzing.')
     client.containers.run(
@@ -59,6 +64,19 @@ def run_container(target: str, local_path: str):
         remove=True
     )
     print(f'[INFO] Finished fuzzing. Results can be found in {local_path}.')
+
+
+def redact_credentials(text):
+    return re.sub(r'(https?://)[^\s/@]+@', r'\1[redacted]@', str(text))
+
+
+def print_build_logs(logs):
+    for record in logs or ():
+        message = record.get('stream') or record.get('error')
+        if not message and isinstance(record.get('errorDetail'), dict):
+            message = record['errorDetail'].get('message')
+        if message:
+            print(redact_credentials(message), end='' if message.endswith('\n') else '\n')
 
 
 def setup_target(target: str):
@@ -87,7 +105,7 @@ def main():
     try:
         start_fuzzing(arguments.target, str(arguments.path.absolute()))
     except Exception as exception:
-        print(f'[ERROR] Unexpected error. Exiting ...\n\n{exception}\n')
+        print(f'[ERROR] Unexpected error. Exiting ...\n\n{redact_credentials(exception)}\n')
         return 255
 
     return 0
