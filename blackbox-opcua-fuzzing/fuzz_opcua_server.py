@@ -50,6 +50,9 @@ def process_monitor():
 
 
 def run_fuzzing(target_path: Path):
+    if not target_path.is_file() or not os.access(target_path, os.X_OK):
+        raise ValueError(f'Target must be an executable file: {target_path}')
+
     monitor = Process(target=process_monitor)
     monitor.start()
 
