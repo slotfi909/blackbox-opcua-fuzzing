@@ -15,6 +15,7 @@ from boofuzz.utils.debugger_thread_simple import DebuggerThreadSimple
 from boofuzz.utils.process_monitor_pedrpc_server import ProcessMonitorPedrpcServer
 
 from fuzzer.boofuzz_definition import fuzz_opcua
+from fuzzer.progress import ProgressTracker
 from replay.replay import replay_crash_log
 
 
@@ -49,19 +50,19 @@ def process_monitor():
         monitor.serve_forever()
 
 
-def run_fuzzing(target_path: Path):
+def run_fuzzing(target_path: Path, tracker):
     if not target_path.is_file() or not os.access(target_path, os.X_OK):
         raise ValueError(f'Target must be an executable file: {target_path}')
 
     monitor = Process(target=process_monitor)
     monitor.start()
 
-    session_id = fuzz_opcua(target_path)
-
-    monitor.terminate()
-    monitor.join()
-
-    return session_id
+    try:
+        tracker.start()
+        return fuzz_opcua(target_path, tracker)
+    finally:
+        monitor.terminate()
+        monitor.join()
 
 
 def kill_still_running_server():
@@ -81,15 +82,24 @@ def main():
     arguments = parse_arguments()
     create_logger()
 
-    session_id = run_fuzzing(arguments.target)
+    tracker = ProgressTracker()
+    try:
+        session_id = run_fuzzing(arguments.target, tracker)
 
-    if arguments.reproduce:
-        kill_still_running_server()
+        if arguments.reproduce:
+            tracker.phase('replay')
+            kill_still_running_server()
 
-        replay_crash_log(
-            target='/opt/app/target',
-            crash_log=Path(f'/tmp/results/crash_info_{session_id}.json'),
-        )
+            replay_crash_log(
+                target='/opt/app/target',
+                crash_log=Path(f'/tmp/results/crash_info_{session_id}.json'),
+            )
+        tracker.phase('completed')
+    except BaseException:
+        tracker.phase('failed')
+        raise
+    finally:
+        tracker.stop()
 
     return 0
 

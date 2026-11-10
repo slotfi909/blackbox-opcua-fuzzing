@@ -39,6 +39,7 @@ def load_fuzzer():
 class TargetValidationTests(unittest.TestCase):
     def setUp(self):
         self.fuzzer = load_fuzzer()
+        self.tracker = MagicMock()
         self.temp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp_dir.cleanup)
         self.root = Path(self.temp_dir.name)
@@ -53,7 +54,7 @@ class TargetValidationTests(unittest.TestCase):
         for target in (self.root / 'missing', nonexecutable, dangling, self.root):
             with self.subTest(target=target), patch.object(self.fuzzer, 'Process') as process:
                 with self.assertRaisesRegex(ValueError, 'Target must be an executable file') as error:
-                    self.fuzzer.run_fuzzing(target)
+                    self.fuzzer.run_fuzzing(target, self.tracker)
                 self.assertIn(str(target), str(error.exception))
                 process.assert_not_called()
                 self.fuzzer.fuzz_opcua.assert_not_called()
@@ -67,10 +68,10 @@ class TargetValidationTests(unittest.TestCase):
 
         for path in (target, link):
             with self.subTest(target=path), patch.object(self.fuzzer, 'Process') as process:
-                self.fuzzer.run_fuzzing(path)
+                self.fuzzer.run_fuzzing(path, self.tracker)
                 process.assert_called_once_with(target=self.fuzzer.process_monitor)
                 process.return_value.start.assert_called_once_with()
-                self.fuzzer.fuzz_opcua.assert_called_with(path)
+                self.fuzzer.fuzz_opcua.assert_called_with(path, self.tracker)
                 process.return_value.terminate.assert_called_once_with()
                 process.return_value.join.assert_called_once_with()
 

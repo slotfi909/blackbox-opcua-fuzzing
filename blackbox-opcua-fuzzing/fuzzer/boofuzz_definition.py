@@ -16,7 +16,7 @@ EPOCH_AS_FILETIME = 116444736000000000  # January 1, 1970 as MS file time
 HUNDREDS_OF_NANOSECONDS = 10000000
 
 
-def setup_session(ip: str, port: int, target_path: str) -> Session:
+def setup_session(ip: str, port: int, target_path: str, tracker) -> Session:
     '''
     The current number of mutations for each definition is
     - Hello 2261
@@ -52,7 +52,8 @@ def setup_session(ip: str, port: int, target_path: str) -> Session:
         index_end=None,
         receive_data_after_fuzz=True,
         keep_web_open=False,
-        web_port=None
+        web_port=None,
+        post_test_case_callbacks=[tracker.post_test_case],
     )
 
 
@@ -421,8 +422,8 @@ def create_session_definition():
         s_dword(2147483647, name='MaxResponseMessageSize')
 
 
-def fuzz_opcua(file_path: Path) -> str:
-    session = setup_session('127.0.0.1', 4840, str(file_path.absolute()))
+def fuzz_opcua(file_path: Path, tracker) -> str:
+    session = setup_session('127.0.0.1', 4840, str(file_path.absolute()), tracker)
 
     hello_definition()
     open_channel_definition()
@@ -447,11 +448,13 @@ def fuzz_opcua(file_path: Path) -> str:
     session.connect(s_get('OpenChannel'), s_get('CreateSession'), callback=set_channel_parameter_from_open)
     session.connect(s_get('CreateSession'), s_get('ActivateSession'), callback=set_channel_parameter_from_create)
 
+    tracker.phase('fuzzing')
     try:
         session.fuzz()
     except KeyboardInterrupt:
         pass
 
+    tracker.phase('result collection')
     boofuzz_log = convert_boofuzz_sqlite_to_dict(session._run_id)
     crashes = merge_boofuzz_data(boofuzz_log, session._run_id)
     store_crash_information(session._run_id, crashes)

@@ -1,4 +1,5 @@
 import argparse
+from collections import deque
 import os
 import random
 import re
@@ -13,6 +14,9 @@ DEFAULT_DIR = './fuzzing_results'
 BASE_TAG = 'blackbox-fuzzer/baseimage'
 TARGETS = ['node-opc', 'open62541', 'python-opcua', 'dotnet', 'java']
 SETUP_SH = '#!/usr/bin/env bash\n\nexec targets/{target}/install.sh\n'
+PROBE_MARKER = '[FUZZ-PROBE]'
+MAX_LOG_LINE = 65536
+MAX_DIAGNOSTIC_LINES = 20
 
 
 class ChangeDirectory:
@@ -57,13 +61,63 @@ def run_container(target: str, local_path: str):
 
     build('target', path='.', tag=unique_tag)
 
-    print('[INFO] Start fuzzing.')
-    client.containers.run(
+    container = client.containers.run(
         image=unique_tag,
         volumes={local_path: {'bind': '/tmp/results/', 'mode': 'rw'}},
-        remove=True
+        remove=True,
+        detach=True,
     )
-    print(f'[INFO] Finished fuzzing. Results can be found in {local_path}.')
+    diagnostics = deque(maxlen=MAX_DIAGNOSTIC_LINES)
+    finished = False
+    try:
+        print(f'[INFO] Start fuzzing in container {container.id}. '
+              'Docker logs are available only while the automatically removed container exists.', flush=True)
+        pending = b''
+        dropping = False
+        for chunk in container.logs(stream=True, follow=True, stdout=True, stderr=True):
+            # Process one line at a time and discard oversized lines rather than
+            # retaining unbounded boofuzz output.
+            while chunk:
+                part, separator, chunk = chunk.partition(b'\n')
+                if not dropping:
+                    if len(pending) + len(part) > MAX_LOG_LINE:
+                        pending = b''
+                        dropping = True
+                    else:
+                        pending += part
+                if separator:
+                    if not dropping:
+                        line = redact_credentials(pending.decode('utf-8', errors='replace'))
+                        diagnostics.append(line)
+                        if PROBE_MARKER in line:
+                            print(line, flush=True)
+                    pending = b''
+                    dropping = False
+        if pending and not dropping:
+            line = redact_credentials(pending.decode('utf-8', errors='replace'))
+            diagnostics.append(line)
+            if PROBE_MARKER in line:
+                print(line, flush=True)
+
+        result = container.wait()
+        status = result['StatusCode']
+        finished = True
+        if status != 0:
+            raise RuntimeError(f'Fuzzing container exited with status {status}.')
+        print(f'[INFO] Finished fuzzing. Results can be found in {local_path}.')
+    except BaseException:
+        if diagnostics:
+            print('[ERROR] Recent container output:', file=sys.stderr, flush=True)
+            for line in diagnostics:
+                print(line, file=sys.stderr, flush=True)
+        raise
+    finally:
+        if not finished:
+            try:
+                container.stop()
+            except Exception as exception:
+                print(f'[WARN] Could not stop fuzzing container: {redact_credentials(exception)}',
+                      file=sys.stderr, flush=True)
 
 
 def redact_credentials(text):
