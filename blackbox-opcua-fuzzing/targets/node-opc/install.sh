@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-apt-get update && apt-get install -y npm
+apt-get update
+apt-get install -y npm
 
 curl -sL https://deb.nodesource.com/setup_14.x | bash -
 apt-get install -y nodejs

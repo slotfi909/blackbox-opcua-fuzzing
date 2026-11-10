@@ -5,7 +5,8 @@ set -e
 # apt:    libmbedtls-dev
 # cmake:  -DUA_ENABLE_ENCRYPTION_MBEDTLS=ON
 
-apt-get update && apt-get install -y build-essential cmake libssl-dev
+apt-get update
+apt-get install -y build-essential cmake libssl-dev
 
 git clone https://github.com/open62541/open62541.git
 (

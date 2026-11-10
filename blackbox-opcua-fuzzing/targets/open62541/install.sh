@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-apt-get update && apt-get install -y build-essential cmake
+apt-get update
+apt-get install -y build-essential cmake
 
 git clone https://github.com/open62541/open62541.git
 (

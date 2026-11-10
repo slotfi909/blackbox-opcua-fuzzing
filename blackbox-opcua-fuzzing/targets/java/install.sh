@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-apt-get update && apt-get install -y openjdk-8-jre wget unzip
+apt-get update
+apt-get install -y openjdk-8-jre wget unzip
 
 wget https://github.com/digitalpetri/opc-ua-demo-server/releases/download/v0.2/milo-demo-server-linux.zip
 unzip milo-demo-server-linux.zip

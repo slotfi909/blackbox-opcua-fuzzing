@@ -15,6 +15,25 @@ SETUP_SH = next(ast.literal_eval(node.value) for node in ast.parse(SOURCE).body
 
 
 class InstallerTests(unittest.TestCase):
+    def test_apt_update_failure_stops_installers(self):
+        for target, script in (('java', 'install.sh'), ('node-opc', 'install.sh'),
+                               ('open62541', 'install.sh'), ('open62541', 'tls_install.sh')):
+            with self.subTest(target=target, script=script), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                bindir = root / 'bin'
+                bindir.mkdir()
+                apt = bindir / 'apt-get'
+                apt.write_text('#!/bin/sh\nexit 42\n')
+                apt.chmod(0o755)
+                installer = root / 'targets' / target / 'install.sh'
+                installer.parent.mkdir(parents=True)
+                installer.symlink_to(ROOT / 'targets' / target / script)
+                wrapper = root / 'setup.sh'
+                wrapper.write_text(SETUP_SH.format(target=target))
+                env = dict(os.environ, PATH=f'{bindir}:{os.environ["PATH"]}')
+                result = subprocess.run(['bash', str(wrapper)], cwd=root, env=env)
+                self.assertEqual(result.returncode, 42)
+
     def test_generated_wrapper_preserves_installer_status(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -83,6 +102,26 @@ class InstallerTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('Cannot check out node-opcua revision', result.stderr)
             self.assertFalse((root / 'copy-ran').exists())
+
+    def test_java_unexpected_initialization_failure_propagates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bindir = root / 'bin'
+            bindir.mkdir()
+            for name in ('apt-get', 'wget', 'unzip', 'timeout'):
+                command = bindir / name
+                command.write_text('#!/bin/sh\nexit {}\n'.format(37 if name == 'timeout' else 0))
+                command.chmod(0o755)
+            installer = root / 'targets/java/install.sh'
+            installer.parent.mkdir(parents=True)
+            installer.symlink_to(ROOT / 'targets/java/install.sh')
+            wrapper = root / 'setup.sh'
+            wrapper.write_text(SETUP_SH.format(target='java'))
+            env = dict(os.environ, PATH=f'{bindir}:{os.environ["PATH"]}')
+            result = subprocess.run(['bash', str(wrapper)], cwd=root, env=env,
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 37)
+            self.assertIn('initialization failed with status 37', result.stderr)
 
 
 if __name__ == '__main__':
