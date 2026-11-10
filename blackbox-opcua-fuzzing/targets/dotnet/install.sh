@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 # Add dotnet mirror
 apt-get update
@@ -13,11 +14,9 @@ apt-get install -y dotnet-sdk-3.1
 # Patch port in config
 git clone https://github.com/OPCFoundation/UA-.NETStandard.git
 (
-  cd "UA-.NETStandard/Applications/ConsoleReferenceServer" || return
+  cd "UA-.NETStandard/Applications/ConsoleReferenceServer" || exit 1
   sed 's/opc.tcp:\/\/localhost:62541/opc.tcp:\/\/localhost:4840/' Quickstarts.ReferenceServer.Config.xml > tmpfile
   mv tmpfile Quickstarts.ReferenceServer.Config.xml
 )
 
 cp targets/dotnet/target target
-
-exit 0

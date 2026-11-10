@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 # For mbedTLS instead of openssl replace apt install and cmake parameters
 # apt:    libmbedtls-dev
@@ -25,5 +26,3 @@ mkdir -p target_build
 )
 
 cp target_build/bin/examples/server_ctt target
-
-exit 0

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -eo pipefail
 
 apt-get update && apt-get install -y npm
 
@@ -10,5 +11,3 @@ npm install node-opcua --save
 git clone https://github.com/node-opcua/node-opcua -b v2.47.0
 
 cp targets/node-opc/target target
-
-exit 0

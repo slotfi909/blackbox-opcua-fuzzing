@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 
 apt-get update && apt-get install -y build-essential cmake
 
@@ -21,5 +22,3 @@ mkdir -p target_build
 )
 
 cp target_build/bin/examples/server_ctt target
-
-exit 0

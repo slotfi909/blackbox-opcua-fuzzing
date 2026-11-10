@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
+set -e
 
 pip3 install virtualenv
 
 git clone https://github.com/FreeOpcUa/python-opcua.git
 (
-  cd python-opcua || return
+  cd python-opcua || exit 1
 
   virtualenv .env
 
@@ -13,5 +14,3 @@ git clone https://github.com/FreeOpcUa/python-opcua.git
 )
 
 cp targets/python-opcua/target target
-
-exit 0
